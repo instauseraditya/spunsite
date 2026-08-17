@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>SPUN — swipe into your next song</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #150D1A;
+    --bg-2: #1B1120;
+    --surface: #241730;
+    --surface-2: #2E1D3D;
+    --surface-3: #382548;
+    --line: rgba(246,238,230,0.09);
+    --text: #F6EEE6;
+    --text-dim: #B6A6C2;
+    --text-faint: #7C6C8C;
+    --gold: #F2B705;
+    --gold-dim: #C99A1E;
+    --green: #3ECF8E;
+    --rose: #FF5C77;
+    --shadow: 0 30px 60px -20px rgba(0,0,0,0.6);
+    --radius: 22px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: radial-gradient(circle at 15% 0%, #2A1533 0%, transparent 55%),
+                radial-gradient(circle at 85% 10%, #14202B 0%, transparent 45%),
+                var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--gold); color:#1B1120; }
+  button{ font-family:inherit; cursor:pointer; }
+  input, textarea, select{ font-family:inherit; }
+
+  .app-frame{
+    width:100%;
+    max-width:460px;
+    min-height:100vh;
+    background:var(--bg-2);
+    position:relative;
+    overflow:hidden;
+    box-shadow: var(--shadow);
+    display:flex;
+    flex-direction:column;
+  }
+  @media(min-width:520px){
+    body{ padding:28px 0; }
+    .app-frame{ min-height:calc(100vh - 56px); border-radius:32px; border:1px solid var(--line); }
+  }
+
+  /* ---------- TOP BAR ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:20px 20px 14px;
+    flex-shrink:0;
+  }
+  .wordmark{
+    font-family:'Unbounded',sans-serif;
+    font-weight:800;
+    font-size:22px;
+    letter-spacing:0.5px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .wordmark .dot{
+    width:9px; height:9px; border-radius:50%;
+    background: conic-gradient(from 90deg, var(--gold), var(--rose), var(--green), var(--gold));
+    display:inline-block;
+  }
+  .icon-btn{
+    width:38px; height:38px; border-radius:50%;
+    border:1px solid var(--line);
+    background:var(--surface);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text);
+    transition: transform .15s ease, background .15s ease;
+  }
+  .icon-btn:active{ transform:scale(0.92); }
+  .icon-btn svg{ width:17px; height:17px; }
+  .topbar-actions{ display:flex; gap:8px; }
+
+  /* ---------- TABS ---------- */
+  .tabbar{
+    display:flex; gap:6px;
+    padding:0 20px 16px;
+    flex-shrink:0;
+  }
+  .tab{
+    flex:1;
+    text-align:center;
+    padding:10px 8px;
+    border-radius:14px;
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:0.3px;
+    color:var(--text-faint);
+    background:transparent;
+    border:1px solid transparent;
+    transition:all .18s ease;
+  }
+  .tab.active{
+    background:var(--surface);
+    border-color:var(--line);
+    color:var(--gold);
+  }
+
+  .view{ display:none; flex:1; min-height:0; flex-direction:column; }
+  .view.active{ display:flex; }
+
+  /* ---------- RATE VIEW / CARD STACK ---------- */
+  .stack-wrap{
+    position:relative;
+    flex:1;
+    margin:4px 20px 8px;
+    min-height:420px;
+  }
+  .stack-meta{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding:0 4px 10px;
+    font-family:'Space Mono', monospace;
+    font-size:11px;
+    color:var(--text-faint);
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+  }
+  .stack-meta b{ color:var(--gold); font-weight:700; }
+
+  .card-stack{ position:relative; height:100%; }
+  .swipe-card{
+    position:absolute; inset:0;
+    border-radius:var(--radius);
+    background:var(--surface);
+    border:1px solid var(--line);
+    overflow:hidden;
+    touch-action:none;
+    user-select:none;
+    box-shadow:0 20px 40px -18px rgba(0,0,0,0.55);
+    display:flex; flex-direction:column;
+    transition: transform .15s ease;
+  }
+  .swipe-card.dragging{ transition:none; }
+  .swipe-card.depth-1{ transform: translateY(14px) scale(0.95); z-index:1; opacity:0.7;}
+  .swipe-card.depth-0{ z-index:2; }
+
+  .art-wrap{
+    position:relative;
+    aspect-ratio: 1/1;
+    background:var(--surface-2);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+  .vinyl{
+    position:absolute;
+    width:78%; height:78%;
+    border-radius:50%;
+    animation: spin 6s linear infinite;
+    animation-play-state:paused;
+  }
+  .swipe-card.spin .vinyl{ animation-play-state:running; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .art-cover{
+    position:relative; z-index:2;
+    width:56%; height:56%;
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow:0 10px 24px -8px rgba(0,0,0,0.5);
+  }
+  .art-cover svg{ width:100%; height:100%; display:block; }
+
+  .stamp{
+    position:absolute; top:22px;
+    font-family:'Unbounded',sans-serif;
+    font-weight:800;
+    font-size:20px;
+    letter-spacing:2px;
+    padding:7px 14px;
+    border-radius:8px;
+    border:3px solid;
+    opacity:0;
+    pointer-events:none;
+    z-index:5;
+  }
+  .stamp-right{ right:18px; color:var(--green); border-color:var(--green); transform:rotate(10deg); }
+  .stamp-left{ left:18px; color:var(--rose); border-color:var(--rose); transform:rotate(-10deg); }
+
+  .card-body{
+    padding:16px 18px 18px;
+    display:flex; flex-direction:column; gap:6px; flex:1;
+  }
+  .card-title{ font-family:'Unbounded',sans-serif; font-size:19px; font-weight:700; line-height:1.2; }
+  .card-artist{ color:var(--text-dim); font-size:14px; font-weight:500; }
+  .card-tags{ display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+  .tag{
+    font-family:'Space Mono', monospace;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    padding:4px 8px;
+    border-radius:6px;
+    background:var(--surface-2);
+    color:var(--text-dim);
+    border:1px solid var(--line);
+  }
+  .card-foot{
+    margin-top:auto;
+    display:flex; align-items:center; justify-content:space-between;
+    padding-top:10px;
+  }
+  .rating-mini{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-dim); }
+  .rating-mini svg{ width:14px; height:14px; fill:var(--gold); }
+
+  .fav-heart{
+    width:36px; height:36px; border-radius:50%;
+    background:var(--surface-2);
+    border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .fav-heart svg{ width:17px; height:17px; stroke:var(--text-dim); fill:none; transition:.15s; }
+  .fav-heart.active svg{ fill:var(--rose); stroke:var(--rose); }
+
+  .heart-burst{
+    position:absolute; z-index:9; pointer-events:none;
+    font-size:64px;
+    animation: burst .6s ease forwards;
+  }
+  @keyframes burst{
+    0%{ transform:scale(0.3) translate(-50%,-50%); opacity:0; }
+    30%{ transform:scale(1.15) translate(-50%,-50%); opacity:1; }
+    100%{ transform:scale(1) translate(-50%,-50%); opacity:0; }
+  }
+
+  .stack-empty{
+    height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; gap:14px; padding:30px; color:var(--text-dim);
+  }
+  .stack-empty svg{ width:52px; height:52px; opacity:0.5; }
+  .stack-empty h3{ font-family:'Unbounded',sans-serif; font-size:17px; margin:0; color:var(--text); }
+  .stack-empty p{ margin:0; font-size:13.5px; line-height:1.5; }
+
+  .btn{
+    font-family:'Unbounded',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    letter-spacing:0.3px;
+    padding:11px 20px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    background:var(--surface-2);
+    color:var(--text);
+  }
+  .btn.gold{ background:var(--gold); color:#211407; border-color:var(--gold); }
+  .btn:active{ transform:scale(0.97); }
+
+  /* action buttons under stack */
+  .action-row{
+    display:flex; justify-content:center; align-items:center; gap:22px;
+    padding:14px 20px 18px;
+    flex-shrink:0;
+  }
+  .round-btn{
+    width:58px; height:58px; border-radius:50%;
+    border:1px solid var(--line);
+    background:var(--surface);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 12px 24px -10px rgba(0,0,0,0.5);
+  }
+  .round-btn.pass svg{ stroke:var(--rose); }
+  .round-btn.know svg{ stroke:var(--green); }
+  .round-btn svg{ width:24px; height:24px; fill:none; stroke-width:2.4; }
+  .round-btn.pass{ width:50px; height:50px; }
+  .round-btn:active{ transform:scale(0.9); }
+
+  /* ---------- SEARCH OVERLAY ---------- */
+  .overlay{
+    position:absolute; inset:0; z-index:40;
+    background:var(--bg-2);
+    display:flex; flex-direction:column;
+    transform:translateY(-100%);
+    transition:transform .28s cubic-bezier(.2,.8,.2,1);
+  }
+  .overlay.open{ transform:translateY(0); }
+  .overlay-head{
+    display:flex; align-items:center; gap:10px;
+    padding:18px 18px 12px;
+    flex-shrink:0;
+  }
+  .search-input-wrap{
+    flex:1; display:flex; align-items:center; gap:8px;
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:14px; padding:11px 14px;
+  }
+  .search-input-wrap svg{ width:16px; height:16px; stroke:var(--text-faint); flex-shrink:0; }
+  .search-input-wrap input{
+    border:none; outline:none; background:transparent; color:var(--text);
+    font-size:14.5px; width:100%;
+  }
+  .search-input-wrap input::placeholder{ color:var(--text-faint); }
+  .search-results{ flex:1; overflow-y:auto; padding:6px 18px 24px; }
+  .search-hint{ color:var(--text-faint); font-size:13px; text-align:center; margin-top:40px; line-height:1.6; }
+
+  .result-row{
+    display:flex; align-items:center; gap:12px;
+    padding:10px 6px; border-radius:14px;
+  }
+  .result-row:active{ background:var(--surface); }
+  .result-art{ width:46px; height:46px; border-radius:10px; overflow:hidden; flex-shrink:0; }
+  .result-art svg{ width:100%; height:100%; display:block; }
+  .result-info{ flex:1; min-width:0; }
+  .result-title{ font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .result-sub{ font-size:12px; color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .result-rating{ font-size:11.5px; color:var(--gold); font-family:'Space Mono',monospace; flex-shrink:0; }
+
+  /* ---------- DISCOVER VIEW ---------- */
+  .discover-scroll{ flex:1; overflow-y:auto; padding:0 20px 24px; }
+  .filter-row{ display:flex; gap:8px; padding:2px 0 16px; overflow-x:auto; scrollbar-width:none; }
+  .filter-row::-webkit-scrollbar{ display:none; }
+  .chip-select{
+    flex-shrink:0;
+    appearance:none;
+    background:var(--surface);
+    border:1px solid var(--line);
+    color:var(--text);
+    font-size:12.5px;
+    font-weight:600;
+    padding:9px 30px 9px 13px;
+    border-radius:20px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23B6A6C2' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:right 12px center;
+  }
+  .chip-shuffle{
+    flex-shrink:0;
+    display:flex; align-items:center; gap:6px;
+    background:var(--gold); color:#211407;
+    font-weight:700; font-size:12.5px;
+    padding:9px 14px; border-radius:20px; border:none;
+  }
+  .chip-shuffle svg{ width:14px; height:14px; }
+
+  .rec-grid{ display:flex; flex-direction:column; gap:10px; }
+  .rec-card{
+    display:flex; gap:12px; align-items:center;
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:16px; padding:10px;
+  }
+  .rec-art{ width:58px; height:58px; border-radius:12px; overflow:hidden; flex-shrink:0; }
+  .rec-art svg{ width:100%; height:100%; display:block; }
+  .rec-info{ flex:1; min-width:0; }
+  .rec-title{ font-size:14.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rec-sub{ font-size:12.5px; color:var(--text-dim); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .rec-tags{ display:flex; gap:5px; margin-top:6px; }
+  .rec-foot{ display:flex; align-items:center; gap:10px; flex-shrink:0; }
+
+  .section-label{
+    font-family:'Space Mono', monospace;
+    font-size:11px; letter-spacing:0.8px; text-transform:uppercase;
+    color:var(--text-faint); margin:4px 0 10px;
+  }
+
+  .empty-fav{
+    text-align:center; color:var(--text-dim); padding:60px 30px; font-size:13.5px; line-height:1.6;
+  }
+  .empty-fav svg{ width:44px; height:44px; opacity:0.4; margin-bottom:10px; }
+
+  /* ---------- BOTTOM SHEETS (rate + detail + settings) ---------- */
+  .sheet-backdrop{
+    position:absolute; inset:0; background:rgba(10,6,13,0.6);
+    z-index:50; opacity:0; pointer-events:none; transition:opacity .2s ease;
+  }
+  .sheet-backdrop.open{ opacity:1; pointer-events:auto; }
+  .sheet{
+    position:absolute; left:0; right:0; bottom:0; z-index:51;
+    background:var(--surface); border-radius:24px 24px 0 0;
+    border:1px solid var(--line); border-bottom:none;
+    padding:10px 22px 26px;
+    transform:translateY(100%);
+    transition:transform .28s cubic-bezier(.2,.8,.2,1);
+    max-height:82%;
+    overflow-y:auto;
+  }
+  .sheet.open{ transform:translateY(0); }
+  .sheet-grip{ width:36px; height:4px; border-radius:3px; background:var(--line); margin:6px auto 16px; }
+  .sheet h2{ font-family:'Unbounded',sans-serif; font-size:19px; margin:0 0 2px; }
+  .sheet .sub{ color:var(--text-dim); font-size:13.5px; margin-bottom:16px; }
+
+  .star-row{ display:flex; gap:8px; margin:6px 0 18px; }
+  .star-row button{ background:none; border:none; padding:0; }
+  .star-row svg{ width:34px; height:34px; fill:var(--surface-3); stroke:var(--text-faint); transition:.1s; }
+  .star-row svg.on{ fill:var(--gold); stroke:var(--gold); }
+
+  .sheet textarea{
+    width:100%; min-height:80px; resize:vertical;
+    background:var(--surface-2); border:1px solid var(--line); border-radius:12px;
+    color:var(--text); padding:12px; font-size:13.5px; outline:none;
+    margin-bottom:14px;
+  }
+  .sheet textarea::placeholder{ color:var(--text-faint); }
+  .sheet-actions{ display:flex; gap:10px; }
+  .sheet-actions .btn{ flex:1; text-align:center; }
+
+  .detail-head{ display:flex; gap:14px; align-items:center; margin-bottom:14px; }
+  .detail-art{ width:74px; height:74px; border-radius:16px; overflow:hidden; flex-shrink:0; }
+  .detail-art svg{ width:100%; height:100%; display:block; }
+  .detail-stats{ display:flex; align-items:center; gap:14px; margin:10px 0 18px; }
+  .stat{ display:flex; flex-direction:column; }
+  .stat .num{ font-family:'Unbounded',sans-serif; font-size:18px; color:var(--gold); }
+  .stat .lbl{ font-family:'Space Mono',monospace; font-size:10px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.5px; }
+
+  .review{ padding:12px 0; border-top:1px solid var(--line); }
+  .review-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .review-author{ font-weight:600; font-size:13px; }
+  .review-stars{ display:flex; gap:2px; }
+  .review-stars svg{ width:12px; height:12px; fill:var(--gold); }
+  .review-text{ font-size:13px; color:var(--text-dim); line-height:1.5; }
+
+  .setting-block{ margin-bottom:20px; }
+  .setting-block h4{ font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-faint); font-family:'Space Mono',monospace; margin:0 0 10px; }
+  .chip-list{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip-toggle{
+    padding:8px 13px; border-radius:20px; font-size:12.5px; font-weight:600;
+    background:var(--surface-2); border:1px solid var(--line); color:var(--text-dim);
+  }
+  .chip-toggle.on{ background:var(--gold); color:#211407; border-color:var(--gold); }
+
+  a{ color: var(--gold); }
+  ::-webkit-scrollbar{ width:6px; }
+  ::-webkit-scrollbar-thumb{ background:var(--surface-3); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<div class="app-frame" id="appFrame">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="wordmark"><span class="dot"></span>SPUN</div>
+    <div class="topbar-actions">
+      <button class="icon-btn" id="openSearch" aria-label="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      </button>
+      <button class="icon-btn" id="openSettings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabbar">
+    <button class="tab active" data-view="rate">Rate</button>
+    <button class="tab" data-view="discover">Discover</button>
+    <button class="tab" data-view="favorites">Favorites</button>
+  </div>
+
+  <!-- RATE VIEW -->
+  <div class="view active" id="view-rate">
+    <div class="stack-wrap">
+      <div class="stack-meta"><span><b id="stackCount">0</b> tracks in today's stack</span><span>swipe or tap ↓</span></div>
+      <div class="card-stack" id="cardStack"></div>
+    </div>
+    <div class="action-row">
+      <button class="round-btn pass" id="btnPass" aria-label="Don't know it">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg>
+      </button>
+      <button class="round-btn know" id="btnKnow" aria-label="I know this one">
+        <svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- DISCOVER VIEW -->
+  <div class="view" id="view-discover">
+    <div class="discover-scroll">
+      <div class="filter-row" id="discoverFilters">
+        <select class="chip-select" id="filterGenre"><option value="">Any genre</option></select>
+        <select class="chip-select" id="filterCountry"><option value="">Any country</option></select>
+        <input class="chip-select" id="filterArtist" placeholder="Artist…" style="width:120px;">
+        <button class="chip-shuffle" id="btnShuffle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Surprise
+        </button>
+      </div>
+      <div class="section-label" id="discoverLabel">Recommended for you</div>
+      <div class="rec-grid" id="discoverGrid"></div>
+    </div>
+  </div>
+
+  <!-- FAVORITES VIEW -->
+  <div class="view" id="view-favorites">
+    <div class="discover-scroll">
+      <div class="section-label">Your saved tracks</div>
+      <div class="rec-grid" id="favGrid"></div>
+    </div>
+  </div>
+
+  <!-- SEARCH OVERLAY -->
+  <div class="overlay" id="searchOverlay">
+    <div class="overlay-head">
+      <div class="search-input-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="searchInput" placeholder="Search track or artist…" autocomplete="off">
+      </div>
+      <button class="icon-btn" id="closeSearch" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="search-results" id="searchResults">
+      <div class="search-hint">Try a track name, an artist, or a vibe like<br>"lo-fi" or "afrobeats".</div>
+    </div>
+  </div>
+
+  <!-- RATE SHEET -->
+  <div class="sheet-backdrop" id="rateBackdrop"></div>
+  <div class="sheet" id="rateSheet">
+    <div class="sheet-grip"></div>
+    <h2 id="rateSongTitle">Track name</h2>
+    <div class="sub" id="rateSongArtist">Artist</div>
+    <div class="star-row" id="starRow"></div>
+    <textarea id="reviewText" placeholder="Say something about it (optional)…"></textarea>
+    <div class="sheet-actions">
+      <button class="btn" id="skipRate">Just mark as heard</button>
+      <button class="btn gold" id="submitRate">Save rating</button>
+    </div>
+  </div>
+
+  <!-- DETAIL SHEET -->
+  <div class="sheet-backdrop" id="detailBackdrop"></div>
+  <div class="sheet" id="detailSheet">
+    <div class="sheet-grip"></div>
+    <div class="detail-head">
+      <div class="detail-art" id="detailArt"></div>
+      <div style="flex:1;min-width:0;">
+        <h2 id="detailTitle" style="margin-bottom:2px;">Track</h2>
+        <div class="sub" id="detailArtist" style="margin-bottom:6px;">Artist</div>
+        <div class="card-tags" id="detailTags"></div>
+      </div>
+      <button class="fav-heart" id="detailHeart">
+        <svg viewBox="0 0 24 24" stroke-width="2"><path d="M12 21s-7-4.35-9.5-8.8C.6 8.4 2.4 5 6 5c2 0 3.5 1.1 4.5 2.6C11.5 6.1 13 5 15 5c3.6 0 5.4 3.4 3.5 7.2C19 16.65 12 21 12 21z"/></svg>
+      </button>
+    </div>
+    <div class="detail-stats">
+      <div class="stat"><span class="num" id="detailAvg">4.5</span><span class="lbl">Avg rating</span></div>
+      <div class="stat"><span class="num" id="detailCount">120</span><span class="lbl">Ratings</span></div>
+      <div class="stat"><span class="num" id="detailYear">2023</span><span class="lbl">Released</span></div>
+    </div>
+    <button class="btn gold" id="detailRateBtn" style="width:100%;margin-bottom:6px;">Rate this track</button>
+    <div id="detailReviews"></div>
+  </div>
+
+  <!-- SETTINGS SHEET -->
+  <div class="sheet-backdrop" id="settingsBackdrop"></div>
+  <div class="sheet" id="settingsSheet">
+    <div class="sheet-grip"></div>
+    <h2>Settings</h2>
+    <div class="sub">Tune what shows up in your Rate stack.</div>
+    <div class="setting-block">
+      <h4>Genres</h4>
+      <div class="chip-list" id="settingsGenres"></div>
+    </div>
+    <div class="setting-block">
+      <h4>Countries</h4>
+      <div class="chip-list" id="settingsCountries"></div>
+    </div>
+    <button class="btn gold" id="settingsApply" style="width:100%;">Apply &amp; reshuffle stack</button>
+    <p style="font-size:11.5px;color:var(--text-faint);line-height:1.6;margin-top:16px;">
+      SPUN runs entirely in this browser tab — it's free to use and free to host as a static page.
+      Ratings and favorites live in this session only, so refreshing starts a fresh stack.
+    </p>
+  </div>
+
+</div>
+
+<script>
+(function(){
+
+/* ---------------------------------------------------------
+   DATA
+--------------------------------------------------------- */
+const GENRES = ["Indie Rock","Pop","Hip-Hop","Electronic","R&B","Afrobeats","K-Pop","Latin","Jazz","Lo-fi","Indie Pop","Folk","Alt R&B","Reggaeton","Pop-Rock","Latin Pop"];
+const COUNTRIES = ["USA","UK","Germany","Nigeria","South Korea","Colombia","Japan","France","Brazil","India","Sweden","Australia","Finland"];
+
+const RAW_SONGS = [
+  ["Midnight Static","Nova Ridge","Indie Rock","USA",2023],
+  ["Bloom & Fade","Iris Calloway","Pop","UK",2024],
+  ["Concrete Halo","Kessa Vane","Hip-Hop","USA",2022],
+  ["Sundown Circuit","Tama Reyes","Electronic","Germany",2023],
+  ["Velvet Static","Orin Blake","R&B","USA",2021],
+  ["Lagos Nights","Dumebi Chuks","Afrobeats","Nigeria",2024],
+  ["Neon Hanok","Soojin Park","K-Pop","South Korea",2023],
+  ["Café Con Fuego","Marisol Duarte","Latin","Colombia",2022],
+  ["Paper Moon Jazz","Elliot Frey Trio","Jazz","USA",2019],
+  ["Slow Static Rain","Yuki Amano","Lo-fi","Japan",2023],
+  ["Rue de Minuit","Camille Foret","Pop","France",2022],
+  ["Copacabana Drift","Bela Fontes","Latin","Brazil",2023],
+  ["Marigold Static","Priya Nanda","Indie Pop","India",2024],
+  ["Glacier Bloom","Nord Sable","Electronic","Sweden",2022],
+  ["Rust Belt Serenade","Dutch Halloway","Folk","USA",2020],
+  ["Static Cathedral","Wren Osei","Alt R&B","UK",2023],
+  ["Palm Static Radio","Jovan Ruiz","Reggaeton","Colombia",2024],
+  ["Ash & Amber","Talia Storm","Pop-Rock","Australia",2023],
+  ["Quiet Machines","Felix Aro","Electronic","Finland",2021],
+  ["Harmattan Groove","Nkem Obi","Afrobeats","Nigeria",2023],
+  ["Seoul Sundial","Haeil Jung","K-Pop","South Korea",2024],
+  ["Blue Static Motel","Cass Dunmore","Indie Rock","USA",2022],
+  ["Marble Static Sky","Renata Toledo","Latin Pop","Brazil",2023],
+  ["Analog Ghosts","Simeon Cole","Lo-fi","USA",2024],
+];
+
+const REVIEW_OPEN = ["Been on repeat since I found it.","Didn't expect to love this as much as I do.","Perfect for late-night drives.","Grew on me after the second listen.","The production on this is so clean.","Not my usual genre but this won me over.","Solid from the first hook to the last note.","This one just gets better with headphones on."];
+const REVIEW_CLOSE = ["Adding it to every playlist I make.","Would recommend to anyone who likes a slow build.","The chorus lives in my head rent-free now.","Great find, more like this please.","A little repetitive but still enjoyable.","Wish the outro was longer honestly.","Simple, but it hits every time.","Exactly the mood I needed today."];
+const REVIEWERS = ["Mika","Theo","Priya","Sam","Nadia","Chidi","Elena","Owen","Farah","Luca","Ren","Sasha","Ivo","Dana","Kwame","Yara"];
+
+function seededRand(seed){ let x = Math.sin(seed) * 10000; return x - Math.floor(x); }
+
+const SONGS = RAW_SONGS.map((s, i) => {
+  const [title, artist, genre, country, year] = s;
+  const id = "s" + i;
+  const hue = Math.floor(seededRand(i * 7.13 + 1) * 360);
+  const baseAvg = +(3.5 + seededRand(i * 3.7 + 2) * 1.4).toFixed(1);
+  const baseCount = Math.floor(40 + seededRand(i * 5.2 + 3) * 480);
+  const r1 = Math.min(5, Math.max(3, Math.round(baseAvg + (seededRand(i * 1.9 + 4) - 0.5))));
+  const r2 = Math.min(5, Math.max(3, Math.round(baseAvg + (seededRand(i * 2.3 + 5) - 0.5))));
+  const reviews = [
+    { author: REVIEWERS[i % REVIEWERS.length], stars: r1, text: REVIEW_OPEN[i % REVIEW_OPEN.length] },
+    { author: REVIEWERS[(i + 5) % REVIEWERS.length], stars: r2, text: REVIEW_CLOSE[(i + 2) % REVIEW_CLOSE.length] },
+  ];
+  return { id, title, artist, genre, country, year, hue, baseAvg, baseCount, reviews };
+});
+
+/* ---------------------------------------------------------
+   STATE (in-memory only — resets on refresh, by design)
+--------------------------------------------------------- */
+const state = {
+  view: "rate",
+  seen: new Set(),          // songs swiped either direction this session
+  favorites: new Set(),
+  userRatings: {},          // id -> {stars, text}
+  rateFilters: { genres: new Set(), countries: new Set() }, // empty = all
+  discoverFilters: { genre: "", country: "", artist: "" },
+  discoverShuffleSeed: 0,
+  activeSheetSong: null,
+  pendingRateSong: null,
+  lastTapTime: 0,
+};
+
+function rateFeedSongs(){
+  const { genres, countries } = state.rateFilters;
+  return SONGS.filter(s =>
+    !state.seen.has(s.id) &&
+    (genres.size === 0 || genres.has(s.genre)) &&
+    (countries.size === 0 || countries.has(s.country))
+  );
+}
+
+function avgRating(song){
+  const own = state.userRatings[song.id];
+  if(!own) return song.baseAvg;
+  const total = song.baseAvg * song.baseCount + own.stars;
+  return +(total / (song.baseCount + 1)).toFixed(1);
+}
+function ratingCount(song){
+  return song.baseCount + (state.userRatings[song.id] ? 1 : 0);
+}
+
+/* ---------------------------------------------------------
+   ALBUM ART (original abstract SVG, deterministic per song)
+--------------------------------------------------------- */
+function artSVG(song, uid){
+  const h = song.hue, h2 = (song.hue + 46) % 360, h3 = (song.hue + 200) % 360;
+  const gid = "g" + uid;
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="hsl(${h},62%,42%)"/>
+        <stop offset="100%" stop-color="hsl(${h2},70%,28%)"/>
+      </linearGradient>
+    </defs>
+    <rect width="100" height="100" fill="url(#${gid})"/>
+    <circle cx="${20 + (song.hue % 30)}" cy="${75 - (song.hue % 25)}" r="26" fill="hsl(${h3},70%,55%)" opacity="0.35"/>
+    <circle cx="80" cy="20" r="34" fill="hsl(${h},80%,60%)" opacity="0.25"/>
+    <path d="M0 70 Q 25 ${55 - (song.hue % 20)} 50 65 T 100 60 V100 H0 Z" fill="rgba(0,0,0,0.18)"/>
+  </svg>`;
+}
+function vinylSVG(){
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="49" fill="#0E0710"/>
+    <circle cx="50" cy="50" r="49" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+    <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+    <circle cx="50" cy="50" r="31" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+    <circle cx="50" cy="50" r="22" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+    <circle cx="50" cy="50" r="13" fill="#F2B705" opacity="0.9"/>
+    <circle cx="50" cy="50" r="3" fill="#0E0710"/>
+  </svg>`;
+}
+
+/* ---------------------------------------------------------
+   ICONS
+--------------------------------------------------------- */
+const starIcon = (on) => `<svg class="${on?'on':''}" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
+const starMini = () => `<svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
+
+/* ---------------------------------------------------------
+   RENDER: RATE STACK
+--------------------------------------------------------- */
+let dragCtx = null;
+
+function renderStack(){
+  const pool = rateFeedSongs();
+  document.getElementById('stackCount').textContent = pool.length;
+  const stackEl = document.getElementById('cardStack');
+  stackEl.innerHTML = '';
+
+  if(pool.length === 0){
+    stackEl.innerHTML = `<div class="stack-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>
+      <h3>You've cleared today's stack</h3>
+      <p>Loosen your genre &amp; country filters in Settings, or start the stack over.</p>
+      <button class="btn gold" id="resetStackBtn">Start over</button>
+    </div>`;
+    document.getElementById('resetStackBtn').onclick = () => { state.seen.clear(); renderStack(); };
+    return;
+  }
+
+  const top2 = pool.slice(0, 2);
+  top2.forEach((song, idx) => {
+    const depth = idx; // 0 = front
+    const card = document.createElement('div');
+    card.className = `swipe-card depth-${depth}` + (depth===0 ? ' spin' : '');
+    card.dataset.id = song.id;
+    card.innerHTML = `
+      <div class="art-wrap">
+        <div class="vinyl">${vinylSVG()}</div>
+        <div class="art-cover">${artSVG(song, song.id)}</div>
+        <div class="stamp stamp-right">KNOW IT</div>
+        <div class="stamp stamp-left">SKIP</div>
+      </div>
+      <div class="card-body">
+        <div class="card-title">${song.title}</div>
+        <div class="card-artist">${song.artist}</div>
+        <div class="card-tags"><span class="tag">${song.genre}</span><span class="tag">${song.country}</span></div>
+        <div class="card-foot">
+          <div class="rating-mini">${starMini()} ${avgRating(song)} · ${ratingCount(song)} ratings</div>
+          <button class="fav-heart ${state.favorites.has(song.id)?'active':''}" data-fav="${song.id}">
+            <svg viewBox="0 0 24 24" stroke-width="2"><path d="M12 21s-7-4.35-9.5-8.8C.6 8.4 2.4 5 6 5c2 0 3.5 1.1 4.5 2.6C11.5 6.1 13 5 15 5c3.6 0 5.4 3.4 3.5 7.2C19 16.65 12 21 12 21z"/></svg>
+          </button>
+        </div>
+      </div>`;
+    stackEl.appendChild(card);
+    if(depth === 0) attachSwipe(card, song);
+    card.querySelector('[data-fav]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleFavorite(song.id, card, e);
+    });
+  });
+}
+
+function attachSwipe(card, song){
+  let startX=0, startY=0, curX=0, curY=0, dragging=false, moved=false;
+
+  card.addEventListener('pointerdown', (e) => {
+    dragging = true; moved = false;
+    startX = e.clientX; startY = e.clientY; curX = 0; curY = 0;
+    card.classList.add('dragging');
+    card.setPointerCapture(e.pointerId);
+  });
+
+  card.addEventListener('pointermove', (e) => {
+    if(!dragging) return;
+    curX = e.clientX - startX; curY = e.clientY - startY;
+    if(Math.abs(curX) > 6 || Math.abs(curY) > 6) moved = true;
+    const rot = curX / 18;
+    card.style.transform = `translate(${curX}px, ${curY}px) rotate(${rot}deg)`;
+    const right = card.querySelector('.stamp-right');
+    const left = card.querySelector('.stamp-left');
+    right.style.opacity = Math.max(0, Math.min(1, curX / 90));
+    left.style.opacity = Math.max(0, Math.min(1, -curX / 90));
+  });
+
+  card.addEventListener('pointerup', (e) => {
+    if(!dragging) return;
+    dragging = false;
+    card.classList.remove('dragging');
+
+    if(!moved){
+      handleTap(card, song, e);
+      card.style.transform = '';
+      return;
+    }
+    if(curX > 110){
+      flyOut(card, 1); onSwipeRight(song);
+    } else if(curX < -110){
+      flyOut(card, -1); onSwipeLeft(song);
+    } else {
+      card.style.transform = '';
+    }
+  });
+}
+
+function handleTap(card, song, e){
+  const now = Date.now();
+  if(now - state.lastTapTime < 320){
+    toggleFavorite(song.id, card, e, true);
+    state.lastTapTime = 0;
+  } else {
+    state.lastTapTime = now;
+  }
+}
+
+function flyOut(card, dir){
+  card.style.transition = 'transform .35s ease, opacity .35s ease';
+  card.style.transform = `translate(${dir*600}px, ${-40}px) rotate(${dir*30}deg)`;
+  card.style.opacity = '0';
+}
+
+function onSwipeLeft(song){
+  state.seen.add(song.id);
+  setTimeout(renderStack, 260);
+}
+function onSwipeRight(song){
+  state.seen.add(song.id);
+  setTimeout(() => { renderStack(); openRateSheet(song); }, 260);
+}
+
+function toggleFavorite(id, card, evt, showBurst){
+  if(state.favorites.has(id)) state.favorites.delete(id);
+  else state.favorites.add(id);
+  const btn = card.querySelector('[data-fav]') || card.querySelector('.fav-heart') || card;
+  if(btn) btn.classList.toggle('active', state.favorites.has(id));
+  if(showBurst){
+    const burst = document.createElement('div');
+    burst.className = 'heart-burst';
+    burst.textContent = state.favorites.has(id) ? '💜' : '💔';
+    const rect = card.getBoundingClientRect();
+    const frameRect = document.getElementById('appFrame').getBoundingClientRect();
+    burst.style.left = (rect.left - frameRect.left + rect.width/2) + 'px';
+    burst.style.top = (rect.top - frameRect.top + rect.height/2) + 'px';
+    document.getElementById('appFrame').appendChild(burst);
+    setTimeout(() => burst.remove(), 650);
+  }
+  if(state.view === 'favorites') renderFavorites();
+  if(state.activeSheetSong && state.activeSheetSong.id === id) syncDetailHeart();
+}
+
+/* ---------------------------------------------------------
+   RATE SHEET
+--------------------------------------------------------- */
+let selectedStars = 0;
+
+function openRateSheet(song){
+  state.pendingRateSong = song;
+  selectedStars = state.userRatings[song.id] ? state.userRatings[song.id].stars : 0;
+  document.getElementById('rateSongTitle').textContent = song.title;
+  document.getElementById('rateSongArtist').textContent = song.artist;
+  document.getElementById('reviewText').value = state.userRatings[song.id] ? state.userRatings[song.id].text : '';
+  renderStarRow();
+  showSheet('rateSheet', 'rateBackdrop');
+}
+function renderStarRow(){
+  const row = document.getElementById('starRow');
+  row.innerHTML = '';
+  for(let i=1;i<=5;i++){
+    const b = document.createElement('button');
+    b.innerHTML = starIcon(i <= selectedStars);
+    b.onclick = () => { selectedStars = i; renderStarRow(); };
+    row.appendChild(b);
+  }
+}
+document.getElementById('submitRate').addEventListener('click', () => {
+  const song = state.pendingRateSong;
+  if(!song) return;
+  state.userRatings[song.id] = { stars: selectedStars || 5, text: document.getElementById('reviewText').value.trim() };
+  hideSheet('rateSheet','rateBackdrop');
+  renderStack();
+});
+document.getElementById('skipRate').addEventListener('click', () => {
+  hideSheet('rateSheet','rateBackdrop');
+});
+
+/* ---------------------------------------------------------
+   DISCOVER VIEW
+--------------------------------------------------------- */
+function populateFilterOptions(){
+  const g = document.getElementById('filterGenre');
+  const c = document.getElementById('filterCountry');
+  GENRES.forEach(x => g.insertAdjacentHTML('beforeend', `<option value="${x}">${x}</option>`));
+  COUNTRIES.forEach(x => c.insertAdjacentHTML('beforeend', `<option value="${x}">${x}</option>`));
+}
+
+function discoverPool(){
+  const f = state.discoverFilters;
+  let list = SONGS.filter(s =>
+    (!f.genre || s.genre === f.genre) &&
+    (!f.country || s.country === f.country) &&
+    (!f.artist || s.artist.toLowerCase().includes(f.artist.toLowerCase()))
+  );
+  // deterministic-ish shuffle keyed on discoverShuffleSeed so "Surprise me" changes order
+  const seed = state.discoverShuffleSeed;
+  list = list.map(s => ({ s, k: seededRand(s.hue * 0.13 + seed) })).sort((a,b) => a.k - b.k).map(x => x.s);
+  return list;
+}
+
+function renderDiscover(){
+  const grid = document.getElementById('discoverGrid');
+  const pool = discoverPool();
+  const f = state.discoverFilters;
+  document.getElementById('discoverLabel').textContent =
+    (f.genre || f.country || f.artist) ? `${pool.length} tracks that match` : 'Recommended for you';
+  grid.innerHTML = pool.map(song => recCardHTML(song)).join('') ||
+    `<div class="empty-fav">No tracks match those filters yet — try widening your search.</div>`;
+  grid.querySelectorAll('.rec-card').forEach(el => {
+    const id = el.dataset.id;
+    el.addEventListener('click', (e) => {
+      if(e.target.closest('[data-fav]')) return;
+      openDetail(SONGS.find(s => s.id === id));
+    });
+  });
+  grid.querySelectorAll('[data-fav]').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); toggleFavorite(btn.dataset.fav, btn.closest('.rec-card')); });
+  });
+}
+
+function recCardHTML(song){
+  return `<div class="rec-card" data-id="${song.id}">
+    <div class="rec-art">${artSVG(song, song.id+'r')}</div>
+    <div class="rec-info">
+      <div class="rec-title">${song.title}</div>
+      <div class="rec-sub">${song.artist} · ${song.country}</div>
+      <div class="rec-tags"><span class="tag">${song.genre}</span></div>
+    </div>
+    <div class="rec-foot">
+      <div class="rating-mini">${starMini()} ${avgRating(song)}</div>
+      <button class="fav-heart ${state.favorites.has(song.id)?'active':''}" data-fav="${song.id}">
+        <svg viewBox="0 0 24 24" stroke-width="2"><path d="M12 21s-7-4.35-9.5-8.8C.6 8.4 2.4 5 6 5c2 0 3.5 1.1 4.5 2.6C11.5 6.1 13 5 15 5c3.6 0 5.4 3.4 3.5 7.2C19 16.65 12 21 12 21z"/></svg>
+      </button>
+    </div>
+  </div>`;
+}
+
+document.getElementById('filterGenre').addEventListener('change', e => { state.discoverFilters.genre = e.target.value; renderDiscover(); });
+document.getElementById('filterCountry').addEventListener('change', e => { state.discoverFilters.country = e.target.value; renderDiscover(); });
+document.getElementById('filterArtist').addEventListener('input', e => { state.discoverFilters.artist = e.target.value; renderDiscover(); });
+document.getElementById('btnShuffle').addEventListener('click', () => { state.discoverShuffleSeed += 1; renderDiscover(); });
+
+/* ---------------------------------------------------------
+   FAVORITES VIEW
+--------------------------------------------------------- */
+function renderFavorites(){
+  const grid = document.getElementById('favGrid');
+  const favs = SONGS.filter(s => state.favorites.has(s.id));
+  if(favs.length === 0){
+    grid.innerHTML = `<div class="empty-fav">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 21s-7-4.35-9.5-8.8C.6 8.4 2.4 5 6 5c2 0 3.5 1.1 4.5 2.6C11.5 6.1 13 5 15 5c3.6 0 5.4 3.4 3.5 7.2C19 16.65 12 21 12 21z"/></svg><br>
+      Nothing saved yet. Double-tap a card or hit the heart to keep a track here.
+    </div>`;
+    return;
+  }
+  grid.innerHTML = favs.map(recCardHTML).join('');
+  grid.querySelectorAll('.rec-card').forEach(el => {
+    const id = el.dataset.id;
+    el.addEventListener('click', (e) => {
+      if(e.target.closest('[data-fav]')) return;
+      openDetail(SONGS.find(s => s.id === id));
+    });
+  });
+  grid.querySelectorAll('[data-fav]').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); toggleFavorite(btn.dataset.fav, btn.closest('.rec-card')); });
+  });
+}
+
+/* ---------------------------------------------------------
+   DETAIL SHEET
+--------------------------------------------------------- */
+function openDetail(song){
+  state.activeSheetSong = song;
+  document.getElementById('detailArt').innerHTML = artSVG(song, song.id+'d');
+  document.getElementById('detailTitle').textContent = song.title;
+  document.getElementById('detailArtist').textContent = song.artist;
+  document.getElementById('detailTags').innerHTML = `<span class="tag">${song.genre}</span><span class="tag">${song.country}</span>`;
+  document.getElementById('detailAvg').textContent = avgRating(song);
+  document.getElementById('detailCount').textContent = ratingCount(song);
+  document.getElementById('detailYear').textContent = song.year;
+  syncDetailHeart();
+
+  const own = state.userRatings[song.id];
+  const ownHTML = own ? `<div class="review"><div class="review-top"><span class="review-author">You</span><span class="review-stars">${Array.from({length:own.stars}).map(starMini).join('')}</span></div><div class="review-text">${own.text || '(No written review)'}</div></div>` : '';
+  const others = song.reviews.map(r => `<div class="review"><div class="review-top"><span class="review-author">${r.author}</span><span class="review-stars">${Array.from({length:r.stars}).map(starMini).join('')}</span></div><div class="review-text">${r.text}</div></div>`).join('');
+  document.getElementById('detailReviews').innerHTML = ownHTML + others;
+  document.getElementById('detailRateBtn').textContent = own ? 'Update your rating' : 'Rate this track';
+  showSheet('detailSheet','detailBackdrop');
+}
+function syncDetailHeart(){
+  const song = state.activeSheetSong;
+  if(!song) return;
+  document.getElementById('detailHeart').classList.toggle('active', state.favorites.has(song.id));
+}
+document.getElementById('detailHeart').addEventListener('click', (e) => {
+  const song = state.activeSheetSong;
+  toggleFavorite(song.id, document.getElementById('detailSheet'), e, true);
+});
+document.getElementById('detailRateBtn').addEventListener('click', () => {
+  hideSheet('detailSheet','detailBackdrop');
+  setTimeout(() => openRateSheet(state.activeSheetSong), 200);
+});
+
+/* ---------------------------------------------------------
+   SETTINGS SHEET
+--------------------------------------------------------- */
+function renderSettings(){
+  const gWrap = document.getElementById('settingsGenres');
+  const cWrap = document.getElementById('settingsCountries');
+  gWrap.innerHTML = GENRES.map(g => `<button class="chip-toggle ${state.rateFilters.genres.has(g)?'on':''}" data-g="${g}">${g}</button>`).join('');
+  cWrap.innerHTML = COUNTRIES.map(c => `<button class="chip-toggle ${state.rateFilters.countries.has(c)?'on':''}" data-c="${c}">${c}</button>`).join('');
+  gWrap.querySelectorAll('[data-g]').forEach(b => b.addEventListener('click', () => {
+    const g = b.dataset.g;
+    state.rateFilters.genres.has(g) ? state.rateFilters.genres.delete(g) : state.rateFilters.genres.add(g);
+    b.classList.toggle('on');
+  }));
+  cWrap.querySelectorAll('[data-c]').forEach(b => b.addEventListener('click', () => {
+    const c = b.dataset.c;
+    state.rateFilters.countries.has(c) ? state.rateFilters.countries.delete(c) : state.rateFilters.countries.add(c);
+    b.classList.toggle('on');
+  }));
+}
+document.getElementById('settingsApply').addEventListener('click', () => {
+  hideSheet('settingsSheet','settingsBackdrop');
+  renderStack();
+});
+
+/* ---------------------------------------------------------
+   SEARCH
+--------------------------------------------------------- */
+function renderSearch(query){
+  const box = document.getElementById('searchResults');
+  if(!query){
+    box.innerHTML = `<div class="search-hint">Try a track name, an artist, or a vibe like<br>"lo-fi" or "afrobeats".</div>`;
+    return;
+  }
+  const q = query.toLowerCase();
+  const results = SONGS.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q) || s.genre.toLowerCase().includes(q) || s.country.toLowerCase().includes(q));
+  if(results.length === 0){
+    box.innerHTML = `<div class="search-hint">No tracks match "${query}".</div>`;
+    return;
+  }
+  box.innerHTML = results.map(song => `
+    <div class="result-row" data-id="${song.id}">
+      <div class="result-art">${artSVG(song, song.id+'s')}</div>
+      <div class="result-info">
+        <div class="result-title">${song.title}</div>
+        <div class="result-sub">${song.artist} · ${song.genre}</div>
+      </div>
+      <div class="result-rating">${avgRating(song)} ★</div>
+    </div>`).join('');
+  box.querySelectorAll('.result-row').forEach(el => {
+    el.addEventListener('click', () => {
+      closeSearch();
+      openDetail(SONGS.find(s => s.id === el.dataset.id));
+    });
+  });
+}
+document.getElementById('searchInput').addEventListener('input', e => renderSearch(e.target.value.trim()));
+
+function openSearch(){
+  document.getElementById('searchOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('searchInput').focus(), 200);
+}
+function closeSearch(){
+  document.getElementById('searchOverlay').classList.remove('open');
+  document.getElementById('searchInput').value = '';
+  renderSearch('');
+}
+document.getElementById('openSearch').addEventListener('click', openSearch);
+document.getElementById('closeSearch').addEventListener('click', closeSearch);
+
+/* ---------------------------------------------------------
+   SHEET HELPERS
+--------------------------------------------------------- */
+function showSheet(sheetId, backdropId){
+  document.getElementById(backdropId).classList.add('open');
+  document.getElementById(sheetId).classList.add('open');
+}
+function hideSheet(sheetId, backdropId){
+  document.getElementById(backdropId).classList.remove('open');
+  document.getElementById(sheetId).classList.remove('open');
+}
+['rate','detail','settings'].forEach(name => {
+  document.getElementById(name+'Backdrop').addEventListener('click', () => hideSheet(name+'Sheet', name+'Backdrop'));
+});
+document.getElementById('openSettings').addEventListener('click', () => { renderSettings(); showSheet('settingsSheet','settingsBackdrop'); });
+
+/* ---------------------------------------------------------
+   TABS / ACTION BUTTONS
+--------------------------------------------------------- */
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    tab.classList.add('active');
+    const v = tab.dataset.view;
+    document.getElementById('view-'+v).classList.add('active');
+    state.view = v;
+    if(v === 'discover') renderDiscover();
+    if(v === 'favorites') renderFavorites();
+    if(v === 'rate') renderStack();
+  });
+});
+
+document.getElementById('btnPass').addEventListener('click', () => {
+  const card = document.querySelector('.swipe-card.depth-0');
+  if(!card) return;
+  const song = SONGS.find(s => s.id === card.dataset.id);
+  flyOut(card, -1); onSwipeLeft(song);
+});
+document.getElementById('btnKnow').addEventListener('click', () => {
+  const card = document.querySelector('.swipe-card.depth-0');
+  if(!card) return;
+  const song = SONGS.find(s => s.id === card.dataset.id);
+  flyOut(card, 1); onSwipeRight(song);
+});
+
+/* ---------------------------------------------------------
+   INIT
+--------------------------------------------------------- */
+populateFilterOptions();
+renderStack();
+renderDiscover();
+
+})();
+</script>
+</body>
+</html>
